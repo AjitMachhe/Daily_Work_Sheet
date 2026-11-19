@@ -10,11 +10,9 @@ export default function App() {
   const [orgSettings, setOrgSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('log');
   const [loginEmail, setLoginEmail] = useState('');
-  const [allUsers, setAllUsers] = useState([]);
 
   useEffect(() => {
     fetchOrgSettings();
-    fetchUsersForQuickLogin();
   }, []);
 
   const fetchOrgSettings = async () => {
@@ -22,34 +20,26 @@ export default function App() {
     if (data) setOrgSettings(data);
   };
 
-  const fetchUsersForQuickLogin = async () => {
-    const { data } = await supabase.from('app_users').select('*');
-    if (data) setAllUsers(data);
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('app_users')
       .select('*')
       .eq('email', loginEmail.toLowerCase().trim())
       .single();
 
     if (data) {
-      loginAsUser(data);
+      setCurrentUser(data);
+      setLoginEmail('');
+      if (data.role === 'admin') setActiveTab('admin');
+      else if (data.role === 'manager') setActiveTab('manager');
+      else setActiveTab('log');
     } else {
-      alert('User not found. Ask Admin to add this email first.');
+      alert('User not found. Please enter your registered work email.');
     }
   };
 
-  const loginAsUser = (user) => {
-    setCurrentUser(user);
-    if (user.role === 'admin') setActiveTab('admin');
-    else if (user.role === 'manager') setActiveTab('manager');
-    else setActiveTab('log');
-  };
-
-  // Minimalist Login Screen
+  // Minimalist Private Login Screen
   if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-slate-50">
@@ -68,7 +58,7 @@ export default function App() {
               <input
                 type="email"
                 required
-                placeholder="admin@example.com"
+                placeholder="name@dypgroup.edu.in"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -81,24 +71,6 @@ export default function App() {
               Sign In
             </button>
           </form>
-
-          {/* Quick Demo Switcher for Testing */}
-          {allUsers.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-slate-100">
-              <p className="text-xs text-slate-400 text-center mb-3">Quick Login (Available Accounts)</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {allUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => loginAsUser(u)}
-                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full transition"
-                  >
-                    {u.full_name} ({u.role})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -109,10 +81,7 @@ export default function App() {
       <Navbar
         currentUser={currentUser}
         orgSettings={orgSettings}
-        onLogout={() => {
-          setCurrentUser(null);
-          fetchUsersForQuickLogin();
-        }}
+        onLogout={() => setCurrentUser(null)}
       />
 
       {/* Role-Based Sub-Navigation */}
